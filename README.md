@@ -30,3 +30,11 @@ Thanks to all the people who already contributed!
 </a>
 
 Made with [contrib.rocks](https://contrib.rocks).
+
+
+# Kevin Notes
+
+* Run with `node index.js`
+* Select the 'Using q' option, and modify the example query with the new dates. I'm okay with an extra day on each end of a year. A few duplicates doesn't matter
+* delete all .xml, .txt, maybe images (png, jpeg)
+* brew install fdupes, then run `fdupes files -rdN`, as there will be a lot of duplicate files `1234.pdf`, `1234 (<timestamp>).pdf`

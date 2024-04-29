@@ -41,16 +41,9 @@ function listLabels(auth, gmail) {
 }
 
 function main(auth, gmailInstance) {
-  let labels;
-  let coredata = {};
-  let workflow;
-  gmail = gmailInstance;
-  if (detectCommandOptions()) {
-    workflow = scanForLabelOption;
-  } else {
-    workflow = defaultBehaviour;
-  }
-  workflow(auth, gmail, coredata)
+  const coredata = {};
+  const workflow = detectCommandOptions() ? scanForLabelOption : defaultBehaviour
+  workflow(auth, gmailInstance, coredata)
     .then((mailList) => {
       coredata.mailList = mailList;
       return fetchMailsByMailIds(auth, mailList);
