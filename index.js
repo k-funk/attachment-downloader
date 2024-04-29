@@ -56,6 +56,8 @@ function main(auth, gmailInstance) {
       return fetchMailsByMailIds(auth, mailList);
     })
     .then((mails) => {
+      // write mails to file for debugging
+      // fs.writeFileSync('file.txt', JSON.stringify(mails, null, 2));
 
       coredata.attachments = pluckAllAttachments(mails);
       return fetchAndSaveAttachments(auth, coredata.attachments);
@@ -64,10 +66,18 @@ function main(auth, gmailInstance) {
       spinner.stop()
       console.log('Done');
     })
-    .catch((e) => console.log(e));
+    .catch((e) => {
+      spinner.stop()
+      throw e
+    });
 }
 
-const detectCommandOptions = () => process.argv.length > 2;
+// Example args, when called with `node index.js`
+// [
+//   '/opt/homebrew/Cellar/node/20.6.0/bin/node',
+//   '/Users/kfunk/Development/attachment-downloader/index.js'
+// ]
+const detectCommandOptions = () => process.argv.length > 3;
 
 const defaultBehaviour = (auth, gmail, coredata) => {
   return askForFilter()
@@ -89,6 +99,12 @@ const defaultBehaviour = (auth, gmail, coredata) => {
           .then((mailId) => {
             spinner.start()
             return getListOfMailIdByFromId(auth, mailId, 50);
+          });
+      } else if (option === 'q') {
+        return askForQ()
+          .then((q) => {
+            spinner.start()
+            return getListOfMailByQ(auth, q, 500);
           });
       } else {
         spinner.start()
@@ -165,7 +181,9 @@ function fetchAndSaveAttachment(auth, attachment) {
     });
   })
     .then((content) => {
-      var fileName = path.resolve(__dirname, 'files', attachment.name);
+      const dirName = 'files'
+      if (!fs.existsSync(dirName)) fs.mkdirSync(dirName);
+      var fileName = path.resolve(__dirname, dirName, attachment.name);
       return FileHelper.isFileExist(fileName)
         .then((isExist) => {
           if (isExist) {
@@ -237,12 +255,14 @@ function askForFilter(labels) {
       type: 'list',
       name: 'option',
       message: 'How do you like to filter',
-      choices: ['Using from email Id', 'Using label', "All"],
+      choices: ['Using from email Id', 'Using label', 'Using q', "All"],
       filter: val => {
         if (val === 'Using from email Id') {
           return 'from';
         } else if (val === 'Using label') {
           return 'label';
+        } else if (val === 'Using q') {
+          return 'q';
         } else {
           return 'all'
         }
@@ -261,6 +281,17 @@ function askForMail() {
     }
   ])
     .then(answers => answers.from);
+}
+
+function askForQ() {
+  return inquirer.prompt([
+    {
+      type: 'input',
+      name: 'q',
+      message: 'Enter q, ie: "after:2022/12/31 before:2024/1/1 has:attachment filename:*.pdf" (without quotes) (https://stackoverflow.com/a/65592253):'
+    }
+  ])
+    .then(answers => answers.q);
 }
 
 function getListOfMailIdByLabel(auth, labelId, maxResults = 500, nextPageToken) {
@@ -320,6 +351,23 @@ function getListOfMailIdByFromId(auth, mailId, maxResults = 500) {
       auth: auth,
       userId: 'me',
       q: 'from:' + mailId,
+      maxResults: maxResults
+    }, function (err, response) {
+      if (err) {
+        console.log('The API returned an error: ' + err);
+        reject(err);
+      }
+      resolve(response.data.messages);
+    });
+  });
+}
+
+function getListOfMailByQ(auth, q, maxResults = 500) {
+  return new Promise((resolve, reject) => {
+    gmail.users.messages.list({
+      auth: auth,
+      userId: 'me',
+      q,
       maxResults: maxResults
     }, function (err, response) {
       if (err) {
